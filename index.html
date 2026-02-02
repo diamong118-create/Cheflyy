@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chef's Delight</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('https://images.unsplash.com/photo-1504674900247-0877df9cc836') no-repeat center center fixed;
+      background-size: cover;
+      color: #333;
+    }
+    header {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-family: 'Pacifico', cursive;
+      font-size: 2.5em;
+      color: #e74c3c;
+      cursor: pointer;
+    }
+    main {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      max-width: 1000px;
+      margin: auto;
+      border-radius: 10px;
+    }
+    .categories {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .category-btn {
+      margin: 5px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #e67e22;
+      color: white;
+      cursor: pointer;
+    }
+    .category-btn.active {
+      background: #d35400;
+    }
+    .search-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    #searchInput {
+      padding: 10px;
+      width: 300px;
+      border-radius: 5px 0 0 5px;
+      border: 1px solid #ccc;
+    }
+    #searchBtn {
+      padding: 10px;
+      border-radius: 0 5px 5px 0;
+      border: 1px solid #ccc;
+      background: #27ae60;
+      color: white;
+      cursor: pointer;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card img {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+    }
+    .card-content {
+      padding: 15px;
+    }
+    .toggle-details {
+      margin-top: 10px;
+      background: #2980b9;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .details {
+      margin-top: 10px;
+      display: none;
+      font-family: 'Georgia', serif;
+      color: #4a4a4a;
+      line-height: 1.6;
+    }
+    .details.open {
+      display: block;
+    }
+    .youtube-link {
+      display: block;
+      margin-top: 10px;
+      color: #c0392b;
+      font-weight: bold;
+    }
+    .details h4 {
+      color: #8e44ad;
+      margin-top: 15px;
+    }
+    .details ul li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="appTitle">Chef's Delight</h1>
+  </header>
+  <main>
+    <div class="categories" id="categories"></div>
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Enter dish or ingredient..." />
+      <button id="searchBtn">Search</button>
+    </div>
+    <div id="results"><p>Please enter a search or select category.</p></div>
+  </main>
+
+  <script>
+    const categories = [
+      { name: 'All', api: '' },
+      { name: 'Breakfast', api: 'Breakfast' },
+      { name: 'Lunch', api: 'Lunch' },
+      { name: 'Dinner', api: 'Dinner' },
+      { name: 'Dessert', api: 'Dessert' },
+      { name: 'Vegan', api: 'Vegan' },
+    ];
+
+    const lunchDinnerBase = '/lunchDinnerRecipes.json';
+    const categoriesDiv = document.getElementById('categories');
+    const resultsDiv = document.getElementById('results');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const appTitle = document.getElementById('appTitle');
+
+    categories.forEach((cat, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = cat.name;
+      btn.className = 'category-btn' + (i === 0 ? ' active' : '');
+      btn.dataset.api = cat.api;
+      btn.addEventListener('click', () => handleCategoryClick(cat.api, btn));
+      categoriesDiv.appendChild(btn);
+    });
+
+    async function handleCategoryClick(category, btn) {
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      resultsDiv.innerHTML = '<p>Loading...</p>';
+
+      if (category === 'Lunch' || category === 'Dinner') {
+        const res = await fetch(lunchDinnerBase);
+        const data = await res.json();
+        displayMeals(data.slice(0, 50));
+        return;
+      }
+
+      if (category === '') {
+        resultsDiv.innerHTML = '<p>Please enter a search or select category.</p>';
+        return;
+      }
+
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${category}`);
+      const data = await res.json();
+      if (!data.meals) return (resultsDiv.innerHTML = '<p>No recipes found.</p>');
+
+      const detailed = await Promise.all(
+        data.meals.slice(0, 20).map(async meal => {
+          const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`);
+          const det = await res.json();
+          return det.meals[0];
+        })
+      );
+
+      displayMeals(detailed);
+    }
+
+    function renderMealCard(meal) {
+      return `
+        <div class="card" id="meal-${meal.idMeal}">
+          <img src="${meal.strMealThumb}" alt="${meal.strMeal}" />
+          <div class="card-content">
+            <h3>${meal.strMeal}</h3>
+            <button class="toggle-details" data-id="${meal.idMeal}">Show Recipe</button>
+            <div class="details" id="details-${meal.idMeal}"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMealDetails(meal) {
+      const ingredients = [];
+      for (let i = 1; i <= 20; i++) {
+        const ing = meal[`strIngredient${i}`];
+        const meas = meal[`strMeasure${i}`];
+        if (ing && ing.trim()) ingredients.push(`${meas ? meas.trim() : ''} ${ing.trim()}`);
+      }
+      return `
+        <h4>Ingredients:</h4>
+        <ul>${ingredients.map(i => `<li>${i}</li>`).join('')}</ul>
+        <h4>Instructions:</h4>
+        <p>${meal.strInstructions}</p>
+        ${meal.strYoutube ? `<a href="${meal.strYoutube}" target="_blank" class="youtube-link">Watch on YouTube</a>` : ''}
+      `;
+    }
+
+    function displayMeals(meals) {
+      resultsDiv.innerHTML = meals.map(renderMealCard).join('');
+      document.querySelectorAll('.toggle-details').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const div = document.getElementById(`details-${id}`);
+          const open = div.classList.contains('open');
+          div.classList.toggle('open');
+          btn.textContent = open ? 'Show Recipe' : 'Hide Recipe';
+          if (!open && div.innerHTML.trim() === '') {
+            const meal = meals.find(m => m.idMeal === id);
+            div.innerHTML = renderMealDetails(meal);
+          }
+        });
+      });
+    }
+
+    searchBtn.addEventListener('click', async () => {
+      const query = searchInput.value.trim();
+      if (!query) return alert('Enter a keyword');
+      resultsDiv.innerHTML = '<p>Loading...</p>';
+
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${query}`);
+      const data = await res.json();
+      if (!data.meals) return (resultsDiv.innerHTML = '<p>No recipes found.</p>');
+      displayMeals(data.meals);
+    });
+
+    appTitle.addEventListener('click', () => {
+      searchInput.value = '';
+      resultsDiv.innerHTML = '<p>Please enter a search or select category.</p>';
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      document.querySelector('.category-btn').classList.add('active');
+    });
+  </script>
+</body>
+</html>
