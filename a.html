@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="google-site-verification" content="Bs6WHYBmLl2XEsCf1numZSpiFbDWWtaNLuzJ_Cfwu3o" />
+  <meta name="google-site-verification" content="Apib7-x98H0j5cPqHWwSMm6dNU4GmODRoqxLiDzdx9I" />
   
   <title>Chef's Delight</title>
   <style>
@@ -133,7 +133,6 @@
   </main>
 
   <script>
-    // ИСПРАВЛЕНО: Заменили Lunch/Dinner на реальные категории API (Beef/Pasta)
     const categories = [
       { name: 'All', api: '' },
       { name: 'Breakfast', api: 'Breakfast' },
@@ -149,7 +148,6 @@
     const searchBtn = document.getElementById('searchBtn');
     const appTitle = document.getElementById('appTitle');
 
-    // Отрисовка кнопок
     categories.forEach((cat, i) => {
       const btn = document.createElement('button');
       btn.textContent = cat.name;
@@ -178,7 +176,6 @@
           return;
         }
 
-        // Загружаем детали для первых 12 блюд (чтобы не перегружать API)
         const detailed = await Promise.all(
           data.meals.slice(0, 12).map(async meal => {
             const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`);
@@ -262,4 +259,3 @@
 
 </body>
 </html>
-
