@@ -1,1 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="google-site-verification" content="Bs6WHYBmLl2XEsCf1numZSpiFbDWWtaNLuzJ_Cfwu3o" />
+  
+  <title>Chef's Delight</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: url('https://images.unsplash.com/photo-1504674900247-0877df9cc836') no-repeat center center fixed;
+      background-size: cover;
+      color: #333;
+    }
+    header {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 20px;
+      text-align: center;
+    }
+    h1 {
+      font-family: 'Pacifico', cursive;
+      font-size: 2.5em;
+      color: #e74c3c;
+      cursor: pointer;
+    }
+    main {
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.9);
+      max-width: 1000px;
+      margin: 20px auto;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .categories {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .category-btn {
+      margin: 5px;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      background: #e67e22;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .category-btn.active {
+      background: #d35400;
+    }
+    .search-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    #searchInput {
+      padding: 10px;
+      width: 300px;
+      border-radius: 5px 0 0 5px;
+      border: 1px solid #ccc;
+      outline: none;
+    }
+    #searchBtn {
+      padding: 10px;
+      border-radius: 0 5px 5px 0;
+      border: 1px solid #ccc;
+      background: #27ae60;
+      color: white;
+      cursor: pointer;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .card img {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+    }
+    .card-content {
+      padding: 15px;
+    }
+    .toggle-details {
+      margin-top: 10px;
+      background: #2980b9;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .details {
+      margin-top: 10px;
+      display: none;
+      font-family: 'Georgia', serif;
+      color: #4a4a4a;
+      line-height: 1.6;
+    }
+    .details.open {
+      display: block;
+    }
+    .youtube-link {
+      display: inline-block;
+      margin-top: 10px;
+      color: #c0392b;
+      font-weight: bold;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1 id="appTitle">Chef's Delight</h1>
+  </header>
+
+  <main>
+    <div class="categories" id="categories"></div>
+    
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Enter dish or ingredient..." />
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div id="results">
+      <p style="text-align:center;">Please enter a search or select category.</p>
+    </div>
+  </main>
+
+  <script>
+    // ИСПРАВЛЕНО: Заменили Lunch/Dinner на реальные категории API (Beef/Pasta)
+    const categories = [
+      { name: 'All', api: '' },
+      { name: 'Breakfast', api: 'Breakfast' },
+      { name: 'Lunch (Beef)', api: 'Beef' },
+      { name: 'Dinner (Pasta)', api: 'Pasta' },
+      { name: 'Dessert', api: 'Dessert' },
+      { name: 'Vegan', api: 'Vegan' },
+    ];
+
+    const categoriesDiv = document.getElementById('categories');
+    const resultsDiv = document.getElementById('results');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const appTitle = document.getElementById('appTitle');
+
+    // Отрисовка кнопок
+    categories.forEach((cat, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = cat.name;
+      btn.className = 'category-btn' + (i === 0 ? ' active' : '');
+      btn.addEventListener('click', () => handleCategoryClick(cat.api, btn));
+      categoriesDiv.appendChild(btn);
+    });
+
+    async function handleCategoryClick(category, btn) {
+      document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      if (category === '') {
+        resultsDiv.innerHTML = '<p style="text-align:center;">Please enter a search or select category.</p>';
+        return;
+      }
+
+      resultsDiv.innerHTML = '<p style="text-align:center;">Loading...</p>';
+
+      try {
+        const res = await fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${category}`);
+        const data = await res.json();
+        
+        if (!data.meals) {
+          resultsDiv.innerHTML = '<p style="text-align:center;">No recipes found.</p>';
+          return;
+        }
+
+        // Загружаем детали для первых 12 блюд (чтобы не перегружать API)
+        const detailed = await Promise.all(
+          data.meals.slice(0, 12).map(async meal => {
+            const res = await fetch(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`);
+            const det = await res.json();
+            return det.meals[0];
+          })
+        );
+
+        displayMeals(detailed);
+      } catch (error) {
+        resultsDiv.innerHTML = '<p style="text-align:center; color:red;">Error loading data. Check your internet.</p>';
+      }
+    }
+
+    function renderMealCard(meal) {
+      return `
+        <div class="card">
+          <img src="${meal.strMealThumb}" alt="${meal.strMeal}" />
+          <div class="card-content">
+            <h3>${meal.strMeal}</h3>
+            <button class="toggle-details" data-id="${meal.idMeal}">Show Recipe</button>
+            <div class="details" id="details-${meal.idMeal}"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMealDetails(meal) {
+      const ingredients = [];
+      for (let i = 1; i <= 20; i++) {
+        const ing = meal[`strIngredient${i}`];
+        const meas = meal[`strMeasure${i}`];
+        if (ing && ing.trim()) ingredients.push(`<li>${meas ? meas : ''} ${ing}</li>`);
+      }
+      return `
+        <h4>Ingredients:</h4>
+        <ul>${ingredients.join('')}</ul>
+        <h4>Instructions:</h4>
+        <p>${meal.strInstructions}</p>
+        ${meal.strYoutube ? `<a href="${meal.strYoutube}" target="_blank" class="youtube-link">▶ Watch on YouTube</a>` : ''}
+      `;
+    }
+
+    function displayMeals(meals) {
+      resultsDiv.innerHTML = meals.map(renderMealCard).join('');
+      
+      document.querySelectorAll('.toggle-details').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const div = document.getElementById(`details-${id}`);
+          const isOpen = div.classList.contains('open');
+          
+          div.classList.toggle('open');
+          btn.textContent = isOpen ? 'Show Recipe' : 'Hide Recipe';
+          
+          if (!isOpen && div.innerHTML === '') {
+            const meal = meals.find(m => m.idMeal === id);
+            div.innerHTML = renderMealDetails(meal);
+          }
+        });
+      });
+    }
+
+    searchBtn.addEventListener('click', async () => {
+      const query = searchInput.value.trim();
+      if (!query) return alert('Please enter a dish name');
+      
+      resultsDiv.innerHTML = '<p style="text-align:center;">Searching...</p>';
+      const res = await fetch(`https://www.themealdb.com/api/json/v1/1/search.php?s=${query}`);
+      const data = await res.json();
+      
+      if (!data.meals) {
+        resultsDiv.innerHTML = '<p style="text-align:center;">Nothing found.</p>';
+      } else {
+        displayMeals(data.meals);
+      }
+    });
+
+    appTitle.addEventListener('click', () => location.reload());
+  </script>
+
+</body>
+</html>
 
